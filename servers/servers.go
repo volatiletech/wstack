@@ -21,7 +21,7 @@ import (
 // Default timeout values if not overridden using WithTimeout.
 const (
 	// readTimeout also sets idleTimeout
-	readTimeout = 10 * time.Second
+	readTimeout  = 10 * time.Second
 	writeTimeout = 10 * time.Second
 )
 
@@ -44,16 +44,16 @@ type Config struct {
 	httpBind string
 
 	httpsBind string
-	tlsKey string
-	tlsCert string
+	tlsKey    string
+	tlsCert   string
 	tlsConfig *tls.Config
 
 	letsEncryptManager *autocert.Manager
 
-	readTimeout time.Duration
+	readTimeout       time.Duration
 	readHeaderTimeout time.Duration
-	writeTimeout time.Duration
-	idleTimeout time.Duration
+	writeTimeout      time.Duration
+	idleTimeout       time.Duration
 
 	logger *zerolog.Logger
 
@@ -93,7 +93,7 @@ func WithHTTPS(bind string, key string, cert string) ConfigBuilder {
 // If you want a simple HTTPS listener using a sane default TLS config, use WithHTTPS.
 func WithTLS(bind string, key string, cert string, config *tls.Config) ConfigBuilder {
 	return func(c *Config) error {
-		if bind == "" || key == "" || cert == "" {
+		if bind == "" || key == "" || cert == "" || config == nil {
 			return errors.New("missing mandatory values in WithHTTPS call")
 		}
 
@@ -108,11 +108,11 @@ func WithTLS(bind string, key string, cert string, config *tls.Config) ConfigBui
 // WithLetsEncryptBasic allows you to tell the server to use Let's Encrypt with auto-renewal for https certs.
 // The Basic version uses sane defaults for the autocert Manager. If you want more control, use WithLetsEncrypt.
 func WithLetsEncryptBasic(bind string, hosts ...string) ConfigBuilder {
-   	manager := &autocert.Manager{
-        Prompt:     autocert.AcceptTOS,
-        HostPolicy: autocert.HostWhitelist(hosts...), 
-        Cache:      autocert.DirCache("certs"),
-    }
+	manager := &autocert.Manager{
+		Prompt:     autocert.AcceptTOS,
+		HostPolicy: autocert.HostWhitelist(hosts...),
+		Cache:      autocert.DirCache("certs"),
+	}
 
 	return func(c *Config) error {
 		if bind == "" || len(hosts) == 0 {
@@ -165,9 +165,9 @@ func New(router http.Handler, logger *zerolog.Logger, builders ...ConfigBuilder)
 	cfg := &Config{
 		router: router,
 
-		readTimeout: readTimeout,
-		writeTimeout: writeTimeout,
-		idleTimeout: 0, // Uses readTimeout value.
+		readTimeout:       readTimeout,
+		writeTimeout:      writeTimeout,
+		idleTimeout:       0, // Uses readTimeout value.
 		readHeaderTimeout: 0, // Uses readTimeout value.
 
 		logger: logger,
@@ -327,11 +327,11 @@ func redirectServer(cfg *Config, errs chan<- error) *http.Server {
 
 func basicServer(cfg *Config) *http.Server {
 	server := &http.Server{
-		ReadTimeout:  cfg.readTimeout,
-		WriteTimeout: cfg.writeTimeout,
+		ReadTimeout:       cfg.readTimeout,
+		WriteTimeout:      cfg.writeTimeout,
 		ReadHeaderTimeout: cfg.readHeaderTimeout,
-		IdleTimeout: cfg.idleTimeout,
-		ErrorLog:     log.New(ServerErrlogger{logger: cfg.logger}, "", 0),
+		IdleTimeout:       cfg.idleTimeout,
+		ErrorLog:          log.New(ServerErrlogger{logger: cfg.logger}, "", 0),
 	}
 
 	return server

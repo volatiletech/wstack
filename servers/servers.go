@@ -25,13 +25,13 @@ const (
 	writeTimeout = 10 * time.Second
 )
 
-// ServerErrlogger allows us to use the zap.logger as our http.Server ErrorLog
-type ServerErrlogger struct {
+// ServerErrLogger allows us to use the zap.logger as our http.Server ErrorLog
+type ServerErrLogger struct {
 	logger *zerolog.Logger
 }
 
 // Implement Write to log server errors using the zerolog logger
-func (s ServerErrlogger) Write(b []byte) (int, error) {
+func (s ServerErrLogger) Write(b []byte) (int, error) {
 	s.logger.Error().Str("error", string(b)).Msg("server error")
 	return 0, nil
 }
@@ -107,15 +107,15 @@ func WithTLS(bind string, key string, cert string, config *tls.Config) ConfigBui
 
 // WithLetsEncryptBasic allows you to tell the server to use Let's Encrypt with auto-renewal for https certs.
 // The Basic version uses sane defaults for the autocert Manager. If you want more control, use WithLetsEncrypt.
-func WithLetsEncryptBasic(bind string, hosts ...string) ConfigBuilder {
+func WithLetsEncryptBasic(bind string, domains ...string) ConfigBuilder {
 	manager := &autocert.Manager{
 		Prompt:     autocert.AcceptTOS,
-		HostPolicy: autocert.HostWhitelist(hosts...),
+		HostPolicy: autocert.HostWhitelist(domains...),
 		Cache:      autocert.DirCache("certs"),
 	}
 
 	return func(c *Config) error {
-		if bind == "" || len(hosts) == 0 {
+		if bind == "" || len(domains) == 0 {
 			return errors.New("missing mandatory values in WithLetsEncryptBasic call")
 		}
 
@@ -180,6 +180,8 @@ func New(router http.Handler, logger *zerolog.Logger, builders ...ConfigBuilder)
 			PreferServerCipherSuites: true,
 			// Only use curves which have assembly implementations
 			CurvePreferences: []tls.CurveID{tls.CurveP256, tls.X25519},
+			// Support http/2 and http/1.1
+			NextProtos: []string{"h2", "http/1.1"},
 		},
 	}
 
@@ -331,7 +333,7 @@ func basicServer(cfg *Config) *http.Server {
 		WriteTimeout:      cfg.writeTimeout,
 		ReadHeaderTimeout: cfg.readHeaderTimeout,
 		IdleTimeout:       cfg.idleTimeout,
-		ErrorLog:          log.New(ServerErrlogger{logger: cfg.logger}, "", 0),
+		ErrorLog:          log.New(ServerErrLogger{logger: cfg.logger}, "", 0),
 	}
 
 	return server

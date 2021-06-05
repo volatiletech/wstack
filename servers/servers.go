@@ -63,10 +63,10 @@ type Config struct {
 }
 
 // WithHTTP allows you to create a server listener for HTTP connections.
-// If New is also called with WithHTTPS or WithLetsEncrypt/WithLetsEncryptBasic then this listener will
+// If New is also called with WithHTTPS or WithLetsEncrypt/WithLetsEncryptManager then this listener will
 // function as a redirect listener and redirect traffic to HTTPS.
 //
-// If used with WithLetsEncrypt/WithLetsEncryptBasic you must bind to :80 - as other ports are not supported.
+// If used with WithLetsEncrypt/WithLetsEncryptManager you must bind to :80 - as other ports are not supported.
 func WithHTTP(bind string) Builder {
 	return func(c *Config) error {
 		if bind == "" {
@@ -139,15 +139,15 @@ func WithTLS(bind string, key string, cert string, config *tls.Config) Builder {
 	}
 }
 
-// WithLetsEncryptBasic allows you to tell the server to use Let's Encrypt with auto-renewal for https certs.
-// The Basic version uses defaults for the autocert Manager & tls config. If you want more control, use WithLetsEncrypt.
+// WithLetsEncrypt allows you to tell the server to use Let's Encrypt with auto-renewal for https certs.
+// This version uses defaults for the autocert Manager & tls config. If you want more control, use WithLetsEncrypt.
 // Bind is not configurable for let's encrypt and will always bind to :443.
 //
 // If httpChallenge is true, we will create a http -> https redirector that responds to let's encrypt HTTP challenges.
 // This is required for Nginx, CloudFlare, and others because they do not support ALPN challenges.
 // If you want to create a redirector that does not respond to HTTP challenges, and wish to use ALPN instead,
-// you can use WithLetsEncryptBasic in conjunction with WithHTTP. Otherwise, you don't need to use WithHTTP.
-func WithLetsEncryptBasic(httpChallenge bool, domains ...string) Builder {
+// you can use WithLetsEncrypt in conjunction with WithHTTP. Otherwise, you don't need to use WithHTTP.
+func WithLetsEncrypt(httpChallenge bool, domains ...string) Builder {
 	manager := &autocert.Manager{
 		Prompt:     autocert.AcceptTOS,
 		HostPolicy: autocert.HostWhitelist(domains...),
@@ -156,7 +156,7 @@ func WithLetsEncryptBasic(httpChallenge bool, domains ...string) Builder {
 
 	return func(c *Config) error {
 		if len(domains) == 0 {
-			return errors.New("missing domains mandatory value in WithLetsEncryptBasic call")
+			return errors.New("missing domains mandatory value in WithLetsEncrypt call")
 		}
 
 		if httpChallenge {
@@ -176,7 +176,7 @@ func WithLetsEncryptBasic(httpChallenge bool, domains ...string) Builder {
 	}
 }
 
-// WithLetsEncrypt allows you to tell the server to use Let's Encrypt with auto-renewal for https certs.
+// WithLetsEncryptManager allows you to tell the server to use Let's Encrypt with auto-renewal for https certs.
 // If you'd like to use a default autocert Manager you can get one from NewBasicAutocertManager to provide here.
 // If tls config is nil we will use a default tls config. If not-nil, the GetCertificate and NextProtos values will be
 // replaced by values from the autocert manager's default TLS config, obtained via manager.TLSConfig().
@@ -185,8 +185,8 @@ func WithLetsEncryptBasic(httpChallenge bool, domains ...string) Builder {
 // If httpChallenge is true, we will create a http -> https redirector that responds to let's encrypt HTTP challenges.
 // This is required for Nginx, CloudFlare, and others because they do not support ALPN challenges.
 // If you want to create a redirector that does not respond to HTTP challenges, and wish to use ALPN instead,
-// you can use WithLetsEncrypt in conjunction with WithHTTP. Otherwise, you don't need to use WithHTTP.
-func WithLetsEncrypt(manager autocert.Manager, cfg *tls.Config, httpChallenge bool) Builder {
+// you can use WithLetsEncryptManager in conjunction with WithHTTP. Otherwise, you don't need to use WithHTTP.
+func WithLetsEncryptManager(manager autocert.Manager, cfg *tls.Config, httpChallenge bool) Builder {
 	if cfg == nil {
 		cfg = manager.TLSConfig()
 		// Causes servers to use Go's default ciphersuite preferences,
@@ -243,12 +243,12 @@ func NewBasicAutocertManager(domains ...string) autocert.Manager {
 // Returns an error and a nil config if there are conflicting configuration entries.
 //
 // The most basic way to get started is:
-// New(router, logger, servers.WithLetsEncryptBasic(true, "domain.com"))
+// New(router, logger, servers.WithLetsEncrypt(true, "domain.com"))
 // This creates a lets encrypt listener on :443, with a redirector on :80 that responds to let's encrypt http challenges.
 //
 // If WithHTTP is used alongside WithHTTPS/LetsEncrypt/TLS then the bind port (usually :80) will act as a
 // redirector to the SSL port. You can also specify custom timeouts using WithTimeouts.
-func New(router http.Handler, logger zerolog.Logger, builders ...Builder) (*Config, chan struct{}, error) {
+func New(router http.Handler, logger zerolog.Logger, builders ...Builder) (*Config, error) {
 	killChan := make(chan struct{})
 
 	cfg := &Config{
@@ -266,19 +266,19 @@ func New(router http.Handler, logger zerolog.Logger, builders ...Builder) (*Conf
 
 	for _, builder := range builders {
 		if err := builder(cfg); err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 	}
 
 	if router == nil {
-		return nil, nil, errors.New("router cannot be nil")
+		return nil, errors.New("router cannot be nil")
 	}
 
 	if cfg.letsEncryptManager != nil && (cfg.tlsCert != "" || cfg.tlsKey != "") {
-		return nil, nil, errors.New("cannot use WithLetsEncrypt and WithHTTPS/WithTLS at the same time")
+		return nil, errors.New("cannot use WithLetsEncrypt and WithHTTPS/WithTLS at the same time")
 	}
 
-	return cfg, killChan, nil
+	return cfg, nil
 }
 
 // Start a server with proper shutdown mechanics (os.Interrupt/Kill handlers).
@@ -321,6 +321,11 @@ func (cfg *Config) Start() error {
 
 	cfg.logger.Info().Msg("http(s) server shut down complete")
 	return nil
+}
+
+// Stop uses the killChan to gracefully shutdown any active listeners.
+func (cfg *Config) Stop() {
+	cfg.killChan <- struct{}{}
 }
 
 func mainServer(cfg *Config, errs chan<- error) *http.Server {

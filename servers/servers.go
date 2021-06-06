@@ -186,7 +186,7 @@ func WithLetsEncrypt(httpChallenge bool, domains ...string) Builder {
 // This is required for Nginx, CloudFlare, and others because they do not support ALPN challenges.
 // If you want to create a redirector that does not respond to HTTP challenges, and wish to use ALPN instead,
 // you can use WithLetsEncryptManager in conjunction with WithHTTP. Otherwise, you don't need to use WithHTTP.
-func WithLetsEncryptManager(manager autocert.Manager, cfg *tls.Config, httpChallenge bool) Builder {
+func WithLetsEncryptManager(manager *autocert.Manager, cfg *tls.Config, httpChallenge bool) Builder {
 	if cfg == nil {
 		cfg = manager.TLSConfig()
 		// Causes servers to use Go's default ciphersuite preferences,
@@ -202,6 +202,10 @@ func WithLetsEncryptManager(manager autocert.Manager, cfg *tls.Config, httpChall
 	}
 
 	return func(c *Config) error {
+		if manager == nil {
+			return errors.New("manager cannot be nil in WithLetsEncryptManager")
+		}
+
 		if manager.HostPolicy == nil {
 			return errors.New("missing host policy in provided autocert manager in WithLetsEncrypt call")
 		}
@@ -210,7 +214,7 @@ func WithLetsEncryptManager(manager autocert.Manager, cfg *tls.Config, httpChall
 			c.httpBind = ":80"
 		}
 		c.httpsBind = ":443"
-		c.letsEncryptManager = &manager
+		c.letsEncryptManager = manager
 		c.tlsConfig = cfg
 		c.httpChallenge = httpChallenge
 		return nil
@@ -230,8 +234,8 @@ func WithTimeouts(read, readHeader, write, idle time.Duration) Builder {
 }
 
 // NewBasicAutocertManager creates a autocert manager with sane default values.
-func NewBasicAutocertManager(domains ...string) autocert.Manager {
-	return autocert.Manager{
+func NewBasicAutocertManager(domains ...string) *autocert.Manager {
+	return &autocert.Manager{
 		Prompt:     autocert.AcceptTOS,
 		HostPolicy: autocert.HostWhitelist(domains...),
 		Cache:      autocert.DirCache("certs"),

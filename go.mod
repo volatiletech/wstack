@@ -1,4 +1,4 @@
-module wstack
+module github.com/volatiletech/wstack
 
 go 1.16
 

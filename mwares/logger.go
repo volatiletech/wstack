@@ -17,11 +17,11 @@ type MW interface {
 }
 
 type zerologMiddleware struct {
-	logger *zerolog.Logger
+	logger zerolog.Logger
 }
 
 // Zerolog returns a logging middleware that outputs details about a request
-func Zerolog(logger *zerolog.Logger) MW {
+func Zerolog(logger zerolog.Logger) MW {
 	return zerologMiddleware{logger: logger}
 }
 

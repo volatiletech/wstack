@@ -41,6 +41,11 @@ func (e errorHandle) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	logger := zerolog.Ctx(r.Context())
+	if logger.GetLevel() == zerolog.Disabled {
+		logger = e.log
+	}
+
 	if v, ok := err.(validationErr); ok {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		b, err := json.Marshal(v)
@@ -53,7 +58,7 @@ func (e errorHandle) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	e.log.Error().Err(err).Msg("unexpected internal server error")
+	logger.Error().Err(err).Msg("unexpected internal server error")
 	w.WriteHeader(http.StatusInternalServerError)
 }
 

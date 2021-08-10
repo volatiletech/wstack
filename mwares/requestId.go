@@ -17,12 +17,12 @@ const (
 
 // ZerologRequestIDLogger returns a request id logger middleware. This only works
 // if chi has inserted a request id into the stack first.
-func ZerologRequestIDLogger(logger *zerolog.Logger) MW {
+func ZerologRequestIDLogger(logger zerolog.Logger) MW {
 	return zerologReqLoggerMiddleware{logger: logger}
 }
 
 type zerologReqLoggerMiddleware struct {
-	logger *zerolog.Logger
+	logger zerolog.Logger
 }
 
 func (z zerologReqLoggerMiddleware) Wrap(next http.Handler) http.Handler {
@@ -30,7 +30,7 @@ func (z zerologReqLoggerMiddleware) Wrap(next http.Handler) http.Handler {
 }
 
 type zerologReqLoggerInserter struct {
-	logger *zerolog.Logger
+	logger zerolog.Logger
 	next   http.Handler
 }
 

@@ -15,12 +15,12 @@ import (
 // oa3 API's take a validation error converter and a error handler on initialization.
 // The returned object here can be used as the error handler argument,
 // and the ValidationConverter function in this package can be used the validation converter argument.
-func NewUnexpectedErrorHandler(log zerolog.Logger) UnexpectedErrorHandler {
+func NewUnexpectedErrorHandler(log *zerolog.Logger) UnexpectedErrorHandler {
 	return UnexpectedErrorHandler{log: log}
 }
 
 type UnexpectedErrorHandler struct {
-	log zerolog.Logger
+	log *zerolog.Logger
 }
 
 func (e UnexpectedErrorHandler) Wrap(fn func(w http.ResponseWriter, r *http.Request) error) http.Handler {
@@ -29,7 +29,7 @@ func (e UnexpectedErrorHandler) Wrap(fn func(w http.ResponseWriter, r *http.Requ
 
 type errorHandle struct {
 	h   func(w http.ResponseWriter, r *http.Request) error
-	log zerolog.Logger
+	log *zerolog.Logger
 }
 
 // ServeHTTP processes the error returned from oa3 API's.

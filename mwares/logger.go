@@ -1,14 +1,14 @@
 package mwares
 
 import (
-"bufio"
-"fmt"
-"net"
-"net/http"
-"time"
+	"bufio"
+	"fmt"
+	"net"
+	"net/http"
+	"time"
 
-"github.com/friendsofgo/errors"
-"github.com/rs/zerolog"
+	"github.com/friendsofgo/errors"
+	"github.com/rs/zerolog"
 )
 
 // MW is an interface defining middleware wrapping
@@ -17,11 +17,11 @@ type MW interface {
 }
 
 type zerologMiddleware struct {
-	logger zerolog.Logger
+	logger *zerolog.Logger
 }
 
 // Zerolog returns a logging middleware that outputs details about a request
-func Zerolog(logger zerolog.Logger) MW {
+func Zerolog(logger *zerolog.Logger) MW {
 	return zerologMiddleware{logger: logger}
 }
 
@@ -63,7 +63,11 @@ func (z zerologger) write(zw *zerologResponseWriter, r *http.Request, startTime 
 		protocol = "https"
 	}
 
-	logger := z.mid.logger
+	logger := zerolog.Ctx(r.Context())
+	if logger.GetLevel() == zerolog.Disabled {
+		logger = z.mid.logger
+	}
+
 	subLogger := logger.With().
 		Int("status", zw.status).
 		Int("size", zw.size).

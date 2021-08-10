@@ -34,7 +34,7 @@ type UserManagement interface {
 // log is a zerolog logger that is used if a logger cannot be found in the request context.
 // Generally AuthCheckMiddleware is used with the zerolog logging middlewares,
 // and the zerolog request id middlewares, so the context key will match as a result.
-func AuthCheckMiddleware(um UserManagement, log zerolog.Logger) func(http.Handler) http.Handler {
+func AuthCheckMiddleware(um UserManagement, log *zerolog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			//log := ab.RequestLogger(r)

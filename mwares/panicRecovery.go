@@ -21,7 +21,7 @@ import (
 //
 // The zerolog logger that's used here needs to have stacktrace logging enabled
 // by setting zerolog.ErrorStackMarshaler, if using this middleware.
-func ZerologRecover(fallback zerolog.Logger, errorHandler http.HandlerFunc) MW {
+func ZerologRecover(fallback *zerolog.Logger, errorHandler http.HandlerFunc) MW {
 	return zerologRecoverMiddleware{
 		fallback: fallback,
 		eh:       errorHandler,
@@ -42,7 +42,7 @@ func BasicPanicRecoverHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 type zerologRecoverMiddleware struct {
-	fallback zerolog.Logger
+	fallback *zerolog.Logger
 	eh       http.HandlerFunc
 }
 
@@ -80,14 +80,9 @@ func (z zerologRecoverer) recoverNicely(w http.ResponseWriter, r *http.Request) 
 		z.zr.eh(w, r)
 	}
 
-	logger := z.zr.fallback
-	v := r.Context().Value(CTXKeyLogger)
-	if v != nil {
-		var ok bool
-		logger, ok = v.(zerolog.Logger)
-		if !ok {
-			panic("cannot get derived request id logger from context object")
-		}
+	logger := zerolog.Ctx(r.Context())
+	if logger.GetLevel() == zerolog.Disabled {
+		logger = z.zr.fallback
 	}
 
 	logger.Error().Stack().

@@ -20,8 +20,8 @@ type UserManagement interface {
 // be only allowed for users who are logged in. This middleware is designed
 // to be used in client-side apps, because it does not handle redirecting.
 //
-// It allows the user through if the SessionKey is present in
-// the session, and is valid and non-expired.
+// It allows the user through if the UserManagement.IsAuthed
+// returns true. Usually your implementation of this will check the users cookie.
 //
 // UserManagement is an interface that implements context management to pass
 // along the authed user state, whether that be a username or a simple bool
@@ -32,13 +32,14 @@ type UserManagement interface {
 // involve checking the request variable for an active and valid cookie.
 //
 // log is a zerolog logger that is used if a logger cannot be found in the request context.
-// Generally AuthCheckMiddleware is used with the zerolog logging middlewares,
-// and the zerolog request id middlewares, so the context key will match as a result.
+// If you're using request ID's, the request ID middlewares will handle this for you.
 func AuthCheckMiddleware(um UserManagement, log *zerolog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			//log := ab.RequestLogger(r)
-			// get logger from context, if that fails, use supplied logger
+			logger := zerolog.Ctx(r.Context())
+			if logger.GetLevel() == zerolog.Disabled {
+				logger = log
+			}
 
 			newLog := log.With().Str("path", r.URL.Path).Logger()
 
